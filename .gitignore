@@ -1,0 +1,14 @@
+# Environnement virtuel
+.venv/
+
+# Python cache
+__pycache__/
+.pytest_cache/
+.ruff_cache/
+
+# Data
+data/raw/*
+data/processed/*
+
+# Jupyter
+.ipynb_checkpoints/

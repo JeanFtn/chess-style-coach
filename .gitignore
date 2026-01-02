@@ -15,3 +15,6 @@ data/processed/*
 
 # Secrets / env
 .env
+
+# Packaging artefacts
+*.egg-info/

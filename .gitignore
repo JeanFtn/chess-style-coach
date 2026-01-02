@@ -12,3 +12,6 @@ data/processed/*
 
 # Jupyter
 .ipynb_checkpoints/
+
+# Secrets / env
+.env

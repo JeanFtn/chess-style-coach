@@ -8,6 +8,9 @@ import chess
 from chess_style_coach.engine.stockfish import analyze_fen
 from chess_style_coach.coaching.formatting import explain_from_engine_output
 
+from chess_style_coach.llm.client import generate_with_llm, llm_enabled
+from chess_style_coach.llm.prompts import build_chess_prompt
+
 
 @dataclass
 class ChatRequest:
@@ -65,13 +68,14 @@ def _short_answer(engine_output: dict) -> str:
 
 def generate_answer(req: ChatRequest, memory: ChatMemory) -> tuple[str, ChatMemory]:
     """
-    Orchestrateur V1 du chat (sans LLM).
-    - Si FEN fournie : analyse + explication
-    - Si pas de FEN : répond qu'on a besoin d'une position (pour l'instant)
+    Orchestrateur du chat.
+    - Si FEN fournie : analyse Stockfish + réponse
+    - Mémoire : réutilise la dernière FEN et la dernière analyse si possible
+    - Optionnel : si LLM activé, génération via LLM, sinon fallback local
     """
     question = req.question.strip()
 
-    # 1) Choix de la FEN : celle de la requête, sinon celle en mémoire
+    # Choix de la FEN : celle de la requête, sinon celle en mémoire
     effective_fen = req.fen.strip() if req.fen else None
     if not effective_fen:
         effective_fen = memory.last_fen
@@ -84,7 +88,7 @@ def generate_answer(req: ChatRequest, memory: ChatMemory) -> tuple[str, ChatMemo
 
     fen = _normalize_fen(effective_fen)
 
-    # 2) Analyse Stockfish : on réutilise la dernière analyse si la FEN n’a pas changé
+    # Analyse Stockfish : on réutilise la dernière analyse si la FEN n’a pas changé
     reuse_engine = (
         memory.last_fen == fen and memory.last_engine_out is not None
     )
@@ -99,11 +103,22 @@ def generate_answer(req: ChatRequest, memory: ChatMemory) -> tuple[str, ChatMemo
             kwargs["multipv"] = req.multipv
         engine_out = analyze_fen(fen, **kwargs)
 
-    # 3) Met à jour la mémoire
+    # Met à jour la mémoire
     memory.last_fen = fen
     memory.last_engine_out = engine_out
 
-    # 4) Génération de la réponse
+    # Si LLM activé, préparation du prompt (mais l'appel n'est pas encore implémenté)
+    if llm_enabled():
+        prompt = build_chess_prompt(question=question, fen=fen, engine_out=engine_out)
+        # Pour l'instant, ça lèvera NotImplementedError tant que l'API n'est pas branchée
+        try:
+            answer = generate_with_llm(prompt)
+            return answer, memory
+        except NotImplementedError:
+            # Tant que l'API n'est pas branchée, on retombe en local
+            pass
+
+    # Génération de la réponse
     if req.mode == "short":
         return _short_answer(engine_out), memory
 

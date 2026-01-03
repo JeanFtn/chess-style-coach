@@ -32,3 +32,8 @@ STOCKFISH_PATH = os.environ.get("STOCKFISH_PATH", "")
 DEFAULT_DEPTH = int(os.environ.get("STOCKFISH_DEPTH", "14"))
 DEFAULT_MULTIPV = int(os.environ.get("STOCKFISH_MULTIPV", "3"))
 DEFAULT_TIME = float(os.environ.get("STOCKFISH_TIME", "0"))  # 0 => on ignore le mode "time"
+
+OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", "")
+OPENAI_MODEL = os.environ.get("OPENAI_MODEL", "gpt-4.1-mini")
+OPENAI_MAX_TOKENS = int(os.environ.get("OPENAI_MAX_TOKENS", "600"))
+OPENAI_TEMPERATURE = float(os.environ.get("OPENAI_TEMPERATURE", "0.6"))

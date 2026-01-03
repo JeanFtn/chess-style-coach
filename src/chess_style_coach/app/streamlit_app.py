@@ -7,7 +7,7 @@ if sys.platform.startswith("win"):
 
 import streamlit as st
 
-from chess_style_coach.app.chat_core import ChatRequest, generate_answer
+from chess_style_coach.app.chat_core import ChatRequest, ChatMemory, generate_answer
 
 st.set_page_config(page_title="ChessGPT", page_icon="♟️")
 
@@ -17,6 +17,9 @@ st.caption("Prototype : Stockfish + explications pédagogiques (sans API LLM).")
 # Mémoire de conversation côté UI
 if "messages" not in st.session_state:
     st.session_state.messages = []
+
+if "memory" not in st.session_state:
+    st.session_state.memory = ChatMemory()
 
 with st.sidebar:
     st.header("Paramètres")
@@ -52,7 +55,7 @@ if prompt:
 
     with st.chat_message("assistant"):
         with st.spinner("Analyse en cours..."):
-            answer = generate_answer(req)
+            answer, st.session_state.memory = generate_answer(req, st.session_state.memory)
         st.markdown(answer)
 
     st.session_state.messages.append({"role": "assistant", "content": answer})

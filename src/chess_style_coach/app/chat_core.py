@@ -18,6 +18,12 @@ class ChatRequest:
     multipv: int | None = None
 
 
+@dataclass
+class ChatMemory:
+    last_fen: Optional[str] = None
+    last_engine_out: Optional[dict] = None
+
+
 def _normalize_fen(fen: str) -> str:
     """Valide et normalise une FEN (raises si invalide)."""
     b = chess.Board(fen)
@@ -57,7 +63,7 @@ def _short_answer(engine_output: dict) -> str:
     )
 
 
-def generate_answer(req: ChatRequest) -> str:
+def generate_answer(req: ChatRequest, memory: ChatMemory) -> tuple[str, ChatMemory]:
     """
     Orchestrateur V1 du chat (sans LLM).
     - Si FEN fournie : analyse + explication
@@ -65,27 +71,40 @@ def generate_answer(req: ChatRequest) -> str:
     """
     question = req.question.strip()
 
-    if not req.fen:
+    # 1) Choix de la FEN : celle de la requête, sinon celle en mémoire
+    effective_fen = req.fen.strip() if req.fen else None
+    if not effective_fen:
+        effective_fen = memory.last_fen
+
+    if not effective_fen:
         return (
             "Pour l’instant, je peux surtout répondre à partir d’une position.\n"
-            "Envoie-moi une FEN (ou on ajoutera le PGN plus tard) et pose ta question dessus."
-        )
+            "Colle une FEN dans la sidebar, puis pose ta question."
+        ), memory
 
-    fen = _normalize_fen(req.fen)
+    fen = _normalize_fen(effective_fen)
 
-    kwargs = {}
+    # 2) Analyse Stockfish : on réutilise la dernière analyse si la FEN n’a pas changé
+    reuse_engine = (
+        memory.last_fen == fen and memory.last_engine_out is not None
+    )
 
-    if req.depth is not None:
-        kwargs["depth"] = req.depth
+    if reuse_engine:
+        engine_out = memory.last_engine_out
+    else:
+        kwargs = {}
+        if req.depth is not None:
+            kwargs["depth"] = req.depth
+        if req.multipv is not None:
+            kwargs["multipv"] = req.multipv
+        engine_out = analyze_fen(fen, **kwargs)
 
-    if req.multipv is not None:
-        kwargs["multipv"] = req.multipv
+    # 3) Met à jour la mémoire
+    memory.last_fen = fen
+    memory.last_engine_out = engine_out
 
-    engine_out = analyze_fen(fen, **kwargs)
-
-
+    # 4) Génération de la réponse
     if req.mode == "short":
-        return _short_answer(engine_out)
+        return _short_answer(engine_out), memory
 
-    # detailed par défaut
-    return explain_from_engine_output(engine_out)
+    return explain_from_engine_output(engine_out), memory
